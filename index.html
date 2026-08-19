@@ -26,6 +26,24 @@ label.file{display:inline-flex;align-items:center;gap:8px;background:var(--panel
 input[type=email]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);margin:10px 0}
 .status{margin-top:12px;color:var(--muted)}.danger{color:var(--bad)}.good{color:var(--good)}
 @media(max-width:720px){.grid{grid-template-columns:1fr 1fr}.app{padding:12px}header{align-items:flex-start;flex-direction:column}.q{font-size:18px}}
+/* QCM Trainer polished mode selector */
+
+.mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:22px}
+.mode-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;min-height:215px;padding:23px;background:linear-gradient(145deg,#151b24,#10151c);color:var(--text);border:1px solid var(--line);border-radius:17px;text-align:left;overflow:hidden;cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.mode-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);opacity:.9}
+.mode-card:hover{transform:translateY(-3px);border-color:#4a5a73;box-shadow:0 12px 32px rgba(0,0,0,.26)}
+.mode-card:active{transform:translateY(-1px) scale(.995)}
+.mode-card h2{margin:10px 0 7px;font-size:15px;letter-spacing:.09em;font-weight:800}
+.mode-count{font-size:30px;line-height:1;font-weight:800;letter-spacing:-.5px;margin:13px 0 9px}
+.mode-desc{font-size:14px;line-height:1.55;color:var(--muted)}
+.mode-desc b{color:var(--text);font-weight:650}
+.mode-kicker{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:11px;letter-spacing:.11em;font-weight:750}
+.mode-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block}
+.mode-arrow{margin-top:auto;padding-top:20px;color:var(--accent);font-size:13px;font-weight:750}
+#fullMode:before{background:#667487}
+#fullMode .mode-dot{background:#667487}
+@media(max-width:720px){.mode-grid{grid-template-columns:1fr;gap:12px}.mode-card{min-height:185px;padding:20px}.mode-count{font-size:27px}}
+
 </style>
 </head>
 <body><div class="app"><header><div class="brand">QCM Trainer</div><nav class="nav" id="nav"></nav></header><main id="main"></main></div>
@@ -65,7 +83,32 @@ async function logout(){await supabase.auth.signOut();}
 function nav(){$("#nav").innerHTML=user?[["dashboard","Dashboard"],["quiz","Start Quiz"],["history","Quiz History"],["bank","Question Bank"],["settings","Settings"]].map(([id,l])=>`<button class="${page===id?"active":""}" data-page="${id}">${l}</button>`).join("")+`<button id="logout">Sign out</button>`:"";$("#nav").querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{page=b.dataset.page;render()});if($("#logout"))$("#logout").onclick=logout;}
 function render(){nav(); if(!user)return loginPage(); if(page==="dashboard")dashboard(); if(page==="quiz")quizPage(); if(page==="history")historyPage(); if(page==="bank")bankPage(); if(page==="settings")settingsPage();}
 function loginPage(){$("#main").innerHTML=`<section class="card"><h1>Welcome to QCM Trainer</h1><p class="muted">Sign in to keep your quiz history and question bank synchronized across your devices.</p><input id="email" type="email" placeholder="Email address"><div class="actions"><button class="primary" id="login">Send Magic Link</button></div><div id="loginStatus" class="status"></div></section>`;$("#login").onclick=sendMagicLink;}
-function dashboard(){$("#main").innerHTML=`<section class="card"><h1>Choose your training mode</h1><p class="muted">Choose how you want to practice today.</p><div class="grid"><div class="stat"><span class="muted">Question bank</span><b>${bank.length}</b></div><div class="stat"><span class="muted">Exam pass mark</span><b>60%</b></div><div class="stat"><span class="muted">Tests completed</span><b>—</b></div><div class="stat"><span class="muted">Account</span><b style="font-size:15px">${esc(user.email)}</b></div></div><div class="mode-grid"><button class="mode-card" id="examMode"><h2>EXAM MODE</h2><div class="mode-count">65 Questions</div><div class="mode-desc">65 random questions from your ${bank.length}-question bank.<br><b>60% required to pass.</b></div></button><button class="mode-card" id="fullMode"><h2>FULL MODE</h2><div class="mode-count">${bank.length} Questions</div><div class="mode-desc">Practice every question in your current bank.<br><b>Your final percentage is shown at the end.</b></div></button></div></section>`;$("#examMode").onclick=()=>startQuiz("exam");$("#fullMode").onclick=()=>startQuiz("full");}
+function dashboard(){
+ const n=bank.length;
+ $("#main").innerHTML=`<section class="card">
+ <div class="mode-kicker"><span class="mode-dot"></span> TRAINING</div>
+ <h1 style="margin:7px 0 6px">Choose your training mode</h1>
+ <p class="muted" style="margin-top:0">Choose how you want to practice today.</p>
+ <div class="mode-grid">
+   <button class="mode-card" id="examMode">
+     <div class="mode-kicker">SIMULATE THE EXAM</div>
+     <h2>EXAM MODE</h2>
+     <div class="mode-count">65 Questions</div>
+     <div class="mode-desc">A random selection from your ${n}-question bank.<br><b>60% required to pass.</b></div>
+     <div class="mode-arrow">Start Exam →</div>
+   </button>
+   <button class="mode-card" id="fullMode">
+     <div class="mode-kicker"><span class="mode-dot"></span> COMPLETE PRACTICE</div>
+     <h2>FULL MODE</h2>
+     <div class="mode-count">${n} Questions</div>
+     <div class="mode-desc">Practice the complete question bank in a random order.<br><b>Final percentage shown at the end.</b></div>
+     <div class="mode-arrow">Start Full →</div>
+   </button>
+ </div>
+ </section>`;
+ $("#examMode").onclick=()=>startQuiz("exam");
+ $("#fullMode").onclick=()=>startQuiz("full");
+}
 function startQuiz(mode="exam"){quiz={mode,items:mode==="full"?shuffle(bank):shuffle(bank).slice(0,Math.min(65,bank.length)),index:0,answers:[],correct:0,locked:false};page="quiz";render();}
 function quizPage(){if(!quiz)return dashboard();if(quiz.index>=quiz.items.length)return finishQuiz();const q=quiz.items[quiz.index],sel=quiz.answers[quiz.index]?.selected||[],multi=q.correct.length>1;const score=pct(quiz.correct,quiz.items.length);$("#main").innerHTML=`<section class="card"><div class="topline"><span class="pill">${quiz.mode==="exam"?"Exam Mode":"Full Mode"} · Question ${quiz.index+1} / ${quiz.items.length}</span><span class="score">Score: ${score}%</span></div><div class="progress"><div class="bar" style="width:${quiz.index/quiz.items.length*100}%"></div></div><div class="muted">${multi?"Select all that apply":"Select one answer"}</div><div class="q">${esc(q.question)}</div><div class="answers">${Object.entries(q.options).map(([k,v])=>`<label class="answer ${quiz.locked&&q.correct.includes(k)?"correct":""} ${quiz.locked&&sel.includes(k)&&!q.correct.includes(k)?"incorrect":""}"><input type="${multi?"checkbox":"radio"}" name="answer" value="${k}" ${sel.includes(k)?"checked":""} ${quiz.locked?"disabled":""}><span><b>${k}.</b> ${esc(v)}</span></label>`).join("")}</div>${quiz.locked?`<div class="feedback ${quiz.answers[quiz.index].correct?"good":"bad"}"><strong>${quiz.answers[quiz.index].correct?"Correct":"Incorrect"}</strong><div class="explain"><b>Correct answer:</b> ${q.correct.join(", ")}<br><br>${esc(q.explanation)}</div></div>`:""}<div class="actions">${quiz.locked?`<button class="primary" id="next">${quiz.index===quiz.items.length-1?"Finish Quiz":"Next Question"}</button>`:`<button class="primary" id="validate">Validate Answer</button>`}</div></section>`;if(!quiz.locked)$("#validate").onclick=()=>{const vals=[...document.querySelectorAll('input[name="answer"]:checked')].map(x=>x.value);if(!vals.length)return;const ok=vals.length===q.correct.length&&vals.every(x=>q.correct.includes(x));quiz.answers[quiz.index]={selected:vals,correct:ok};if(ok)quiz.correct++;quiz.locked=true;render();};else $("#next").onclick=()=>{quiz.index++;quiz.locked=false;render();};}
 async function finishQuiz(){const total=quiz.items.length,percentage=pct(quiz.correct,total),mode=quiz.mode;const record={user_id:user.id,question_bank_id:null,mode,score:quiz.correct,total,percentage,passed:mode==="exam"?percentage>=60:true,completed_at:new Date().toISOString(),answers:quiz.answers};const {error}=await supabase.from("quiz_attempts").insert(record);if(error)console.error(error);const result={mode,score:quiz.correct,total,percentage,passed:record.passed};quiz=null;showResult(result);}
