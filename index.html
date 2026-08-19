@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<link rel="manifest" href="./manifest.webmanifest">
+<title>QCM Trainer</title>
+<style>
+:root{--bg:#090b0f;--panel:#11151b;--panel2:#171c24;--line:#27303b;--text:#eef2f7;--muted:#98a4b4;--accent:#7c9cff;--good:#53d68a;--bad:#ff6878;--shadow:0 18px 50px rgba(0,0,0,.28)}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% -10%,#172033 0,#090b0f 38%);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh}
+button,input{font:inherit}.app{max-width:1080px;margin:auto;padding:18px 16px 50px}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}.brand{font-weight:800;font-size:21px;letter-spacing:-.3px}
+.nav{display:flex;gap:6px;overflow:auto}.nav button,.ghost{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:10px;padding:9px 12px;cursor:pointer;white-space:nowrap}.nav button:hover,.nav button.active{background:var(--panel2);color:var(--text)}
+.card{background:rgba(17,21,27,.94);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow)}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat{background:var(--panel2);border:1px solid var(--line);padding:15px;border-radius:13px}.stat span{color:var(--muted);font-size:13px}.stat b{display:block;font-size:25px;margin-top:5px}
+h1{font-size:27px;margin:0 0 9px}h2{font-size:20px;margin:0 0 10px}.muted{color:var(--muted)}.small{font-size:13px}.topline{display:flex;align-items:center;justify-content:space-between;gap:12px}.pill{font-size:12px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);padding:5px 8px;border-radius:999px}.score{font-weight:750}
+.progress{height:7px;background:#252c36;border-radius:99px;overflow:hidden;margin:14px 0 23px}.bar{height:100%;background:var(--accent);transition:width .2s}
+.question{font-size:20px;line-height:1.48;margin:16px 0 20px}.answers{display:grid;gap:10px}.answer{display:flex;gap:12px;align-items:flex-start;padding:15px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;cursor:pointer;color:var(--text);text-align:left}.answer:hover{border-color:#465365}.answer input{margin-top:4px;accent-color:var(--accent)}.answer.correct{border-color:var(--good)}.answer.incorrect{border-color:var(--bad)}
+.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;flex-wrap:wrap}.primary{border:0;background:var(--accent);color:#fff;padding:11px 16px;border-radius:10px;font-weight:750;cursor:pointer}.primary:disabled{opacity:.45;cursor:not-allowed}
+.feedback{margin-top:18px;padding:16px;border-radius:12px;border:1px solid var(--line);line-height:1.5}.feedback.good{border-color:var(--good)}.feedback.bad{border-color:var(--bad)}.feedback strong{display:block;margin-bottom:7px}.explanation{color:#d8dee8}
+table{width:100%;border-collapse:collapse;margin-top:18px}th,td{padding:11px 7px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--muted);font-size:11px;text-transform:uppercase}.empty{text-align:center;padding:35px;color:var(--muted)}
+.notice{padding:13px;border:1px solid var(--line);border-radius:11px;margin-top:13px;color:var(--muted);line-height:1.5}.success{border-color:var(--good);color:#bcefd0}.error{border-color:var(--bad);color:#ffc3ca}
+.auth{max-width:440px;margin:8vh auto}.field{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);padding:12px;border-radius:10px;margin:8px 0 12px;outline:none}.field:focus{border-color:var(--accent)}
+.file{display:inline-flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);padding:11px 14px;border-radius:10px;cursor:pointer}.file input{display:none}.result{font-size:38px;font-weight:850;letter-spacing:-1px}.passed{color:var(--good)}.failed{color:var(--bad)}
+canvas{width:100%;height:210px;background:var(--panel2);border:1px solid var(--line);border-radius:13px;margin-top:18px}
+@media(max-width:780px){.grid{grid-template-columns:1fr 1fr}.nav{width:100%}header{align-items:flex-start;flex-direction:column}.question{font-size:18px}.card{padding:17px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header id="header"></header>
+<main id="main"></main>
+</div>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const SUPABASE_URL = "https://umlrugknndundkrfvofa.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ecsKv40x9hJDAPlZgGe-6A_pD79G_2l";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true} });
+const PAGE_SIZE=65, PASS=60;
+let bundledBank=[];
+let bank=null, quiz=null, page="dashboard", user=null;
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const shuffle=a=>[...a].sort(()=>Math.random()-.5);
+const percent=(n,d)=>d?Math.round(n/d*1000)/10:0;
+
+async function init(){
+  try{bundledBank=await (await fetch("./questions.json",{cache:"no-store"})).json()}catch(e){bundledBank=[]}
+  const {data:{session}}=await supabase.auth.getSession();
+  user=session?.user??null;
+  supabase.auth.onAuthStateChange(async(_event,session)=>{user=session?.user??null; bank=null; page=user?"dashboard":"login"; await loadBank(); render()});
+  await loadBank();
+  page=user?"dashboard":"login";
+  render();
+}
+async function loadBank(){
+  if(!user){bank=null;return}
+  const {data,error}=await supabase.from("question_banks").select("*").eq("is_active",true).order("created_at",{ascending:false}).limit(1).maybeSingle();
+  if(error){console.error(error);return}
+  if(data){bank=data;return}
+  if(!bundledBank.length)return;
+  const {data:created,error:createError}=await supabase.from("question_banks").insert({
+    user_id:user.id,name:"ADM-201 V22.35",question_count:bundledBank.length,questions:bundledBank,is_active:true
+  }).select().single();
+  if(createError){console.error(createError);return}
+  bank=created;
+}
+function nav(){
+ $("#header").innerHTML=`<div class="brand">QCM Trainer</div><nav class="nav">
+ ${[["dashboard","Dashboard"],["quiz","Start Quiz"],["history","Quiz History"],["bank","Question Bank"],["settings","Settings"]].map(([id,l])=>`<button class="${page===id?'active':''}" data-page="${id}">${l}</button>`).join("")}
+ </nav>`;
+ $("#header").querySelectorAll("button").forEach(b=>b.onclick=()=>{page=b.dataset.page;render()});
+}
+function render(){
+ if(!user){$("#header").innerHTML="";loginPage();return}
+ nav();
+ ({dashboard:dashboardPage,quiz:quizPage,history:historyPage,bank:bankPage,settings:settingsPage}[page]||dashboardPage)();
+}
+async function dashboardPage(){
+ const h=await getHistory(), s=summary(h);
+ $("#main").innerHTML=`<section class="card"><h1>Dashboard</h1><p class="muted">Practice with 65 random questions from your ${bank?.question_count??0}-question bank.</p>
+ <div class="grid"><div class="stat"><span>Tests completed</span><b>${s.count}</b></div><div class="stat"><span>Average score</span><b>${s.avg}%</b></div><div class="stat"><span>Best score</span><b>${s.best}%</b></div><div class="stat"><span>Pass rate</span><b>${s.pass}%</b></div></div>
+ <div class="actions"><button class="primary" id="start">Start Quiz</button></div></section>`;
+ $("#start").onclick=startQuiz;
+}
+function loginPage(){
+ $("#main").innerHTML=`<section class="card auth"><h1>QCM Trainer</h1><p class="muted">Sign in to sync your quiz history across Mac and iPhone.</p>
+ <input id="email" class="field" type="email" placeholder="Email address" autocomplete="email">
+ <button class="primary" id="send" style="width:100%">Send Magic Link</button>
+ <div id="authMsg" class="notice hidden"></div>
+ </section>`;
+ $("#send").onclick=async()=>{
+   const email=$("#email").value.trim(); if(!email)return;
+   $("#send").disabled=true;
+   const {error}=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:location.href.split("?")[0]}});
+   const msg=$("#authMsg");msg.classList.remove("hidden");msg.className="notice "+(error?"error":"success");
+   msg.textContent=error?error.message:"Check your email for the magic link, then return here.";
+   $("#send").disabled=false;
+ };
+}
+function startQuiz(){const source=bank?.questions||bundledBank;quiz={items:shuffle(source).slice(0,Math.min(PAGE_SIZE,source.length)),index:0,correct:0,answers:[],locked:false,startedAt:new Date().toISOString()};page="quiz";render()}
+function quizPage(){
+ if(!quiz){$("#main").innerHTML=`<section class="card"><h1>Start Quiz</h1><p class="muted">65 random questions. Your score is calculated live.</p><div class="actions"><button class="primary" id="start">Start Quiz</button></div></section>`;$("#start").onclick=startQuiz;return}
+ if(quiz.index>=quiz.items.length){finishQuiz();return}
+ const q=quiz.items[quiz.index], chosen=quiz.answers[quiz.index]?.selected||[], ok=quiz.answers[quiz.index]?.correct, multi=q.correct.length>1;
+ $("#main").innerHTML=`<section class="card"><div class="topline"><span class="pill">Question ${quiz.index+1} / ${quiz.items.length}</span><span class="score">Score: ${percent(quiz.correct,quiz.items.length)}%</span></div>
+ <div class="progress"><div class="bar" style="width:${quiz.index/quiz.items.length*100}%"></div></div>
+ <div class="muted small">${multi?"Select all that apply":"Select one answer"}</div><div class="question">${esc(q.question)}</div>
+ <div class="answers">${Object.entries(q.options).map(([k,v])=>{let c="answer";if(quiz.locked&&q.correct.includes(k))c+=" correct";if(quiz.locked&&chosen.includes(k)&&!q.correct.includes(k))c+=" incorrect";return `<label class="${c}"><input name="ans" value="${k}" ${multi?"type=checkbox":"type=radio"} ${chosen.includes(k)?"checked":""} ${quiz.locked?"disabled":""}><span><b>${k}.</b> ${esc(v)}</span></label>`}).join("")}</div>
+ ${quiz.locked?`<div class="feedback ${ok?"good":"bad"}"><strong>${ok?"Correct":"Incorrect"}</strong><div class="explanation"><b>Correct answer:</b> ${q.correct.join(", ")}<br><br>${esc(q.explanation||"No explanation was provided in the source PDF.")}</div></div>`:""}
+ <div class="actions">${quiz.locked?`<button class="primary" id="next">${quiz.index===quiz.items.length-1?"Finish Quiz":"Next Question"}</button>`:`<button class="primary" id="validate">Validate Answer</button>`}</div></section>`;
+ if(!quiz.locked)$("#validate").onclick=validateAnswer; else $("#next").onclick=()=>{quiz.index++;quiz.locked=false;render()};
+}
+function validateAnswer(){
+ const q=quiz.items[quiz.index], selected=[...document.querySelectorAll('input[name="ans"]:checked')].map(x=>x.value);
+ if(!selected.length)return;
+ const correct=selected.length===q.correct.length&&selected.every(x=>q.correct.includes(x));
+ quiz.answers[quiz.index]={selected,correct};
+ if(correct)quiz.correct++;
+ quiz.locked=true;render();
+}
+async function finishQuiz(){
+ const total=quiz.items.length,p=percent(quiz.correct,total),record={question_bank_id:bank?.id||null,score:quiz.correct,total,percentage:p,passed:p>=PASS,started_at:quiz.startedAt,completed_at:new Date().toISOString(),answers:quiz.answers.map((a,i)=>({question_id:quiz.items[i].id,selected:a.selected,correct:a.correct}))};
+ const {error}=await supabase.from("quiz_attempts").insert({user_id:user.id,...record});
+ if(error)console.error(error);
+ quiz=null;page="history";render();
+}
+async function getHistory(){
+ const {data,error}=await supabase.from("quiz_attempts").select("*").order("completed_at",{ascending:true});
+ if(error){console.error(error);return[]} return data||[];
+}
+function summary(h){if(!h.length)return{count:0,avg:0,best:0,pass:0,last:null};return{count:h.length,avg:Math.round(h.reduce((a,x)=>a+Number(x.percentage),0)/h.length*10)/10,best:Math.max(...h.map(x=>Number(x.percentage))),pass:Math.round(h.filter(x=>x.passed).length/h.length*100),last:h.at(-1)}}
+async function historyPage(){
+ const h=await getHistory(),s=summary(h);
+ $("#main").innerHTML=`<section class="card"><h1>Quiz History</h1><div class="grid"><div class="stat"><span>Tests completed</span><b>${s.count}</b></div><div class="stat"><span>Average score</span><b>${s.avg}%</b></div><div class="stat"><span>Best score</span><b>${s.best}%</b></div><div class="stat"><span>Pass rate</span><b>${s.pass}%</b></div></div>
+ <canvas id="chart" width="900" height="210"></canvas>
+ ${h.length?`<table><thead><tr><th>Date</th><th>Score</th><th>Percentage</th><th>Result</th></tr></thead><tbody>${[...h].reverse().map(x=>`<tr><td>${new Date(x.completed_at).toLocaleString()}</td><td>${x.score}/${x.total}</td><td>${x.percentage}%</td><td>${x.passed?"✅ Passed":"❌ Failed"}</td></tr>`).join("")}</tbody></table>`:`<div class="empty">No tests completed yet.</div>`}
+ <div class="actions"><button class="primary" id="retry">Retry the Quiz</button></div></section>`;
+ drawChart(h);$("#retry").onclick=startQuiz;
+}
+function drawChart(h){
+ const c=$("#chart"),ctx=c.getContext("2d"),dpr=devicePixelRatio||1, w=c.clientWidth*dpr,hgt=c.clientHeight*dpr;c.width=w;c.height=hgt;ctx.scale(dpr,dpr);
+ const W=c.clientWidth,H=c.clientHeight;ctx.strokeStyle="#303846";ctx.lineWidth=1;ctx.font="12px -apple-system,BlinkMacSystemFont,Segoe UI,Arial";ctx.fillStyle="#98a4b4";
+ [0,20,40,60,80,100].forEach(v=>{let y=H-20-(v/100)*(H-45);ctx.beginPath();ctx.moveTo(38,y);ctx.lineTo(W-15,y);ctx.stroke();ctx.fillText(v+"%",6,y+4)});
+ if(!h.length)return;ctx.strokeStyle="#7c9cff";ctx.lineWidth=2;ctx.beginPath();h.forEach((x,i)=>{let px=40+(i/(Math.max(h.length-1,1)))*(W-65),py=H-20-(Number(x.percentage)/100)*(H-45);i?ctx.lineTo(px,py):ctx.moveTo(px,py);ctx.fillStyle="#7c9cff";ctx.beginPath();ctx.arc(px,py,3,0,Math.PI*2);ctx.fill();ctx.beginPath();if(i)ctx.moveTo(40+((i-1)/Math.max(h.length-1,1))*(W-65),H-20-(Number(h[i-1].percentage)/100)*(H-45));ctx.lineTo(px,py);ctx.stroke()});ctx.stroke();
+}
+async function bankPage(){
+ const q=bank?.questions||[];
+ $("#main").innerHTML=`<section class="card"><h1>Question Bank</h1><p class="muted">Active bank: <b>${q.length}</b> questions</p><p class="small muted">${esc(bank?.name||"Bundled ADM-201 bank")}</p>
+ <label class="file">📄 Import New PDF<input id="pdf" type="file" accept="application/pdf"></label>
+ <div class="notice">Import a new PDF to replace your current bank. Your quiz history stays untouched. The importer expects the same structure used by the current ADM-201 PDF.</div><div id="import"></div></section>`;
+ $("#pdf").onchange=importPdf;
+}
+async function importPdf(e){
+ const file=e.target.files[0];if(!file)return;$("#import").innerHTML='<div class="notice">Reading PDF…</div>';
+ try{
+  const pdfjs=await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs");pdfjs.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
+  const doc=await pdfjs.getDocument({data:await file.arrayBuffer()}).promise;let text="";
+  for(let i=1;i<=doc.numPages;i++){const p=await doc.getPage(i),c=await p.getTextContent();text+=c.items.map(x=>x.str).join(" ")+"\\n"}
+  const parsed=parsePdf(text);if(parsed.length<1)throw new Error("No questions were detected.");
+  const bad=parsed.filter(q=>!q.question||Object.keys(q.options).length!==4||!q.correct.length);
+  $("#import").innerHTML=`<div class="notice ${bad.length?"error":"success"}"><b>${parsed.length} questions detected</b><br>${bad.length} questions require review.</div><div class="actions"><button class="primary" id="replace" ${bad.length?"disabled":""}>Replace Question Bank</button></div>`;
+  if(bad.length) return;
+  $("#replace").onclick=async()=>{
+   const {error:offErr}=await supabase.from("question_banks").update({is_active:false}).eq("user_id",user.id).eq("is_active",true);if(offErr)throw offErr;
+   const {data,error}=await supabase.from("question_banks").insert({user_id:user.id,name:file.name,question_count:parsed.length,questions:parsed,is_active:true}).select().single();if(error)throw error;bank=data;$("#import").innerHTML='<div class="notice success">Question bank replaced successfully.</div>';
+  };
+ }catch(err){$("#import").innerHTML=`<div class="notice error">${esc(err.message)}</div>`}
+}
+function parsePdf(text){
+ const parts=text.split(/(?=NO\\.\\s*\\d+\\b)/),out=[];
+ for(const part of parts){const m=part.match(/^NO\\.\\s*(\\d+)\\s+/);if(!m)continue;const a=part.match(/Answer:\\s*([A-D](?:\\s+[A-D])*)/);if(!a)continue;const before=part.slice(0,a.index),opts=[...before.matchAll(/(?:^|\\n)\\s*([A-D])\\.\\s*(.*?)(?=\\n\\s*[A-D]\\.\\s|$)/gs)];if(opts.length!==4)continue;const q=before.slice(0,opts[0].index).replace(/^NO\\.\\s*\\d+\\s*/,"").replace(/\\s+/g," ").trim(),options={};opts.forEach(o=>options[o[1]]=o[2].replace(/\\s+/g," ").trim());const ex=part.match(/Explanation:\\s*(.*?)(?=NO\\.\\s*\\d+\\b|$)/s);out.push({id:Number(m[1]),question:q,options,correct:a[1].split(/\\s+/),explanation:(ex?.[1]||"").replace(/\\s+/g," ").trim(),source:"Imported PDF"});}
+ return out.sort((a,b)=>a.id-b.id);
+}
+function settingsPage(){
+ $("#main").innerHTML=`<section class="card"><h1>Settings</h1><p class="muted">Signed in as <b>${esc(user.email)}</b></p><p class="muted">Quiz size: <b>65</b> questions · Passing score: <b>60%</b> · Theme: <b>Dark</b></p>
+ <div class="actions"><button class="ghost" id="signout">Sign Out</button></div><div class="notice">Your question bank and quiz history are stored in the cloud and are tied to your account, so they can be used from another device after signing in.</div></section>`;
+ $("#signout").onclick=async()=>{await supabase.auth.signOut()};
+}
+init();
+</script>
+</body>
+</html>

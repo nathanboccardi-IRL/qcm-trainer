@@ -1,0 +1,9 @@
+{
+  "name": "QCM Trainer",
+  "short_name": "QCM Trainer",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#090b0f",
+  "theme_color": "#090b0f",
+  "description": "ADM-201 practice quiz"
+}
