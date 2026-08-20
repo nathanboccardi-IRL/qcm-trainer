@@ -1,0 +1,75 @@
+name: Fix QCM auth
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-auth:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch auth flow
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('index.html')
+          s = p.read_text()
+
+          old = r'''supabase\.auth\.onAuthStateChange\(async \(event,session\)=>\{.*?\n\}\);'''
+          new = '''supabase.auth.onAuthStateChange((event,session)=>{
+          user=session?.user||null;
+          setTimeout(async()=>{
+            if(event==="PASSWORD_RECOVERY"){
+              recoveryMode=true;
+              authMode="recovery";
+              render();
+              return;
+            }
+            if(user) await loadUser(); else {bank=[]; bankId=null;}
+            if(!recoveryMode){page="dashboard";render();}
+          },0);
+          });'''
+          s2, n = re.subn(old, new, s, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit('Auth state handler not found')
+          s = s2
+
+          old = 'function render(){nav(); if(!user)return loginPage(); if(page==="dashboard")dashboard(); if(page==="quiz")quizPage(); if(page==="history")historyPage(); if(page==="bank")bankPage(); if(page==="settings")settingsPage();}'
+          new = 'function render(){if(recoveryMode){$("#nav").innerHTML="";loginPage();return;} nav(); if(!user)return loginPage(); if(page==="dashboard")dashboard(); if(page==="quiz")quizPage(); if(page==="history")historyPage(); if(page==="bank")bankPage(); if(page==="settings")settingsPage();}'
+          if old not in s:
+              raise SystemExit('Render function not found')
+          s = s.replace(old,new,1)
+
+          old = '  $("#loginStatus").textContent=error?error.message:"Signed in.";\n if(!error){await loadUser();render();}'
+          new = '  $("#loginStatus").textContent=error?error.message:"Signed in.";'
+          if old not in s:
+              raise SystemExit('Sign-in completion block not found')
+          s = s.replace(old,new,1)
+
+          old = '  if(data.session){await loadUser();render();}\n else $("#loginStatus").textContent="Account created. Confirm your email once if required, then sign in.";'
+          new = '  if(data.session){await loadUser();render();}\n else $("#loginStatus").textContent="Account created. Confirm your email once if required, then sign in.";'
+          # Keep signup behavior unchanged.
+
+          p.write_text(s)
+          PY
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('sw.js')
+          s=p.read_text()
+          s=s.replace("qcm-trainer-v4","qcm-trainer-v5",1)
+          p.write_text(s)
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html sw.js
+          git diff --cached --quiet || git commit -m "Fix Supabase auth state handling"
+          git push
