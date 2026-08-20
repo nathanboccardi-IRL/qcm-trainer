@@ -7,7 +7,7 @@
 <style>
 :root{--bg:#0b0d10;--panel:#12161c;--panel2:#181d25;--text:#eef2f7;--muted:#9ba6b5;--line:#28303b;--accent:#7c9cff;--good:#54d68a;--bad:#ff6b7a}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
-.app{max-width:1000px;margin:auto;padding:18px 16px 42px}header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.app{max-width:1000px;margin:auto;padding:calc(18px + env(safe-area-inset-top)) 16px 42px}header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
 .brand{font-weight:750;font-size:20px}.nav{display:flex;gap:6px;flex-wrap:wrap}button{font:inherit;cursor:pointer}
 .nav button,.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);padding:8px 11px;border-radius:9px}
 .nav button.active,.nav button:hover{color:var(--text);background:var(--panel2)}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.16)}
@@ -29,7 +29,7 @@ input[type=email]{width:100%;padding:12px;border-radius:10px;border:1px solid va
 /* QCM Trainer polished mode selector */
 
 .mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:22px}
-.mode-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;min-height:215px;padding:23px;background:linear-gradient(145deg,#151b24,#10151c);color:var(--text);border:1px solid var(--line);border-radius:17px;text-align:left;overflow:hidden;cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.mode-card{-webkit-appearance:none;appearance:none;-webkit-tap-highlight-color:transparent;position:relative;display:flex;flex-direction:column;align-items:flex-start;min-height:215px;padding:23px;background:linear-gradient(145deg,#151b24,#10151c);color:var(--text);border:1px solid var(--line);border-radius:17px;text-align:left;overflow:hidden;cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
 .mode-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);opacity:.9}
 .mode-card:hover{transform:translateY(-3px);border-color:#4a5a73;box-shadow:0 12px 32px rgba(0,0,0,.26)}
 .mode-card:active{transform:translateY(-1px) scale(.995)}
