@@ -1,0 +1,46 @@
+name: Repair QCM index
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repair JavaScript newline literals
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text()
+          replacements = {
+              'join(" ")+"\n"': 'join(" ")+"\\n"',
+              '(?:^|\n)\\s*': '(?:^|\\\\n)\\s*',
+              '(?=\n\\s*[A-D]\\.': '(?=\\\\n\\s*[A-D]\\.',
+          }
+          old = s
+          for a,b in replacements.items():
+              s = s.replace(a,b)
+          if s == old:
+              print('No malformed newline literals found; nothing to repair.')
+          else:
+              p.write_text(s)
+              print('Repaired malformed JavaScript newline literals.')
+          PY
+      - name: Commit repair
+        run: |
+          if git diff --quiet; then
+            echo 'No changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Fix broken JavaScript parsing [skip ci]'
+          git push
