@@ -17,7 +17,8 @@ import {createClient} from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
 const SUPABASE_URL="https://umlrugknndundkrfvofa.supabase.co";
 const SUPABASE_KEY="sb_publishable_ecsKv40x9hJDAPlZgGe-6A_pD79G_2l";
 const OWNER_ID="a40bea08-44dd-4c34-a455-38bfc7e68cb6";
-const supabase=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:"qcm-trainer-auth"}});
+const AUTH_STORAGE_KEY="qcm-trainer-auth-v2";
+const supabase=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:AUTH_STORAGE_KEY,flowType:"pkce"}});
 let user=null,bank=[],bankId=null,page="dashboard",authMode="signin",quiz=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -44,9 +45,9 @@ async function finishQuiz(){const mode=quiz.mode,score=quiz.correct,total=quiz.i
 async function renderHistory(){$("main").innerHTML=`<section class="card"><h1>Quiz History</h1><div id="history" class="empty">Loading…</div></section>`;const r=await supabase.from('quiz_attempts').select('mode,score,total,percentage,passed,completed_at').eq('user_id',user.id).order('completed_at',{ascending:false});if(r.error){$("history").textContent=r.error.message;return}if(!r.data?.length){$("history").textContent='No quizzes completed yet.';return}$("history").className='';$("history").innerHTML=`<table><thead><tr><th>Date</th><th>Mode</th><th>Score</th><th>Result</th></tr></thead><tbody>${r.data.map(x=>`<tr><td>${new Date(x.completed_at).toLocaleString()}</td><td>${esc(x.mode)}</td><td>${x.percentage}% (${x.score}/${x.total})</td><td>${x.passed===null?'—':x.passed?'<span class="good">PASS</span>':'<span class="danger">FAIL</span>'}</td></tr>`).join('')}</tbody></table>`}
 function renderBank(){$("main").innerHTML=`<section class="card"><h1>Question Bank</h1><p class="muted">Current shared bank: <b>${bank.length} questions</b>.</p><p class="muted">The question bank is read-only in the app. Owner imports are handled separately.</p></section>`}
 function renderSettings(){$("main").innerHTML=`<section class="card"><h1>Settings</h1><p class="muted">Signed in as</p><p><b>${esc(user.email)}</b></p><div class="actions" style="justify-content:flex-start"><button class="ghost" id="settingsLogout">Sign out</button></div></section>`;$("settingsLogout").onclick=async()=>{await supabase.auth.signOut();user=null;bank=[];render()}}
-supabase.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){user=null;bank=[];quiz=null;page='dashboard';render()}if(event==='PASSWORD_RECOVERY'){render()}});
+supabase.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED'){user=session?.user||user;if(user)loadBank().then(render)}if(event==='SIGNED_OUT'){user=null;bank=[];quiz=null;page='dashboard';render()}if(event==='PASSWORD_RECOVERY'){render()}});
 boot();
 </script>
-<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js?v=8').catch(()=>{})}</script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js?v=9').catch(()=>{});}</script>
 </body>
 </html>
