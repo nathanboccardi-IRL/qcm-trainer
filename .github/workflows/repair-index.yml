@@ -13,25 +13,57 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Repair JavaScript newline literals
+      - name: Repair JavaScript and mobile auth persistence
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p = Path('index.html')
           s = p.read_text()
+
           replacements = {
               'join(" ")+"\n"': 'join(" ")+"\\n"',
               '(?:^|\n)\\s*': '(?:^|\\\\n)\\s*',
               '(?=\n\\s*[A-D]\\.': '(?=\\\\n\\s*[A-D]\\.',
           }
-          old = s
           for a,b in replacements.items():
               s = s.replace(a,b)
-          if s == old:
-              print('No malformed newline literals found; nothing to repair.')
-          else:
-              p.write_text(s)
-              print('Repaired malformed JavaScript newline literals.')
+
+          old_auth = '''const AUTH_STORAGE_KEY="qcm-trainer-auth-v2";
+          const supabase=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:AUTH_STORAGE_KEY,flowType:"pkce"}});'''
+          new_auth = '''const AUTH_STORAGE_KEY="qcm-trainer-auth-v3";
+          const AUTH_DB_NAME="qcm-trainer-auth";
+          const AUTH_DB_STORE="kv";
+          function openAuthDb(){return new Promise((resolve,reject)=>{if(!window.indexedDB){reject(new Error("IndexedDB unavailable"));return}const r=indexedDB.open(AUTH_DB_NAME,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(AUTH_DB_STORE))r.result.createObjectStore(AUTH_DB_STORE)};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+          async function idbGet(key){const db=await openAuthDb();return new Promise((resolve,reject)=>{const r=db.transaction(AUTH_DB_STORE,"readonly").objectStore(AUTH_DB_STORE).get(key);r.onsuccess=()=>resolve(r.result??null);r.onerror=()=>reject(r.error)})}
+          async function idbSet(key,value){const db=await openAuthDb();return new Promise((resolve,reject)=>{const r=db.transaction(AUTH_DB_STORE,"readwrite").objectStore(AUTH_DB_STORE).put(value,key);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error)})}
+          async function idbRemove(key){const db=await openAuthDb();return new Promise((resolve,reject)=>{const r=db.transaction(AUTH_DB_STORE,"readwrite").objectStore(AUTH_DB_STORE).delete(key);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error)})}
+          const authStorage={getItem:async key=>{try{return await idbGet(key)}catch(e){return window.localStorage.getItem(key)}},setItem:async(key,value)=>{try{await idbSet(key,value)}catch(e){window.localStorage.setItem(key,value)}},removeItem:async key=>{try{await idbRemove(key)}catch(e){}try{window.localStorage.removeItem(key)}catch(e){}}};
+          const supabase=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:authStorage,storageKey:AUTH_STORAGE_KEY,flowType:"pkce"}});'''
+          if old_auth in s:
+              s=s.replace(old_auth,new_auth)
+          elif 'AUTH_DB_NAME="qcm-trainer-auth"' not in s:
+              raise SystemExit('Expected auth initialization block not found')
+
+          old_boot = '''async function boot(){try{const r=await supabase.auth.getSession();user=r.data.session?.user||null;if(user)await loadBank();render()}catch(e){console.error(e);user=null;render()}}'''
+          new_boot = '''async function migrateAuthSession(){try{const old=window.localStorage.getItem("qcm-trainer-auth-v2");const current=await authStorage.getItem(AUTH_STORAGE_KEY);if(old&&!current)await authStorage.setItem(AUTH_STORAGE_KEY,old)}catch(e){console.warn("Auth storage migration skipped",e)}}
+          async function boot(){try{await migrateAuthSession();if(navigator.storage?.persist)await navigator.storage.persist().catch(()=>{});const r=await supabase.auth.getSession();user=r.data.session?.user||null;if(user)await loadBank();render()}catch(e){console.error(e);user=null;render()}}'''
+          if old_boot in s:
+              s=s.replace(old_boot,new_boot)
+          elif 'async function migrateAuthSession()' not in s:
+              raise SystemExit('Expected boot function not found')
+
+          p.write_text(s)
+          print('Auth persistence repair applied.')
+          PY
+      - name: Bump service worker cache
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('sw.js')
+          s=p.read_text()
+          import re
+          s=re.sub(r"const CACHE='[^']+'", "const CACHE='qcm-trainer-v10'", s, count=1)
+          p.write_text(s)
           PY
       - name: Commit repair
         run: |
@@ -41,6 +73,6 @@ jobs:
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html
-          git commit -m 'Fix broken JavaScript parsing [skip ci]'
+          git add index.html sw.js
+          git commit -m 'Fix mobile session persistence [skip ci]'
           git push
