@@ -15,7 +15,9 @@
 @media(max-width:720px){.mode-grid{grid-template-columns:1fr}.mode-card{width:100%}}
 </style>
 </head>
-<body><div class="app"><header><div class="brand">QCM Trainer</div><nav class="nav" id="nav"></nav></header><main id="main"></main></div>
+<body><div class="app"><header><div class="brand" style="display:flex;align-items:baseline;gap:8px">
+  <span>QCM Trainer</span><span style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.04em">v4.1</span>
+</div><nav class="nav" id="nav"></nav></header><main id="main"></main></div>
 <script type="module">
 import {createClient} from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 const SUPABASE_URL="https://umlrugknndundkrfvofa.supabase.co";
