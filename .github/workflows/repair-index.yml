@@ -52,8 +52,19 @@ jobs:
           elif 'async function migrateAuthSession()' not in s:
               raise SystemExit('Expected boot function not found')
 
+          s=s.replace('60%', '68%')
           p.write_text(s)
-          print('Auth persistence repair applied.')
+          print('Auth persistence repair and 68% exam pass mark applied to index.html.')
+          PY
+      - name: Update standalone exam page pass mark
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('exam.html')
+          s=p.read_text()
+          s=s.replace('p>=60','p>=68').replace('60% passing score','68% passing score').replace('at least 60% to pass','at least 68% to pass')
+          p.write_text(s)
+          print('68% exam pass mark applied to exam.html.')
           PY
       - name: Bump service worker cache
         run: |
@@ -62,7 +73,7 @@ jobs:
           p=Path('sw.js')
           s=p.read_text()
           import re
-          s=re.sub(r"const CACHE='[^']+'", "const CACHE='qcm-trainer-v10'", s, count=1)
+          s=re.sub(r"const CACHE='[^']+'", "const CACHE='qcm-trainer-v11'", s, count=1)
           p.write_text(s)
           PY
       - name: Commit repair
@@ -73,6 +84,6 @@ jobs:
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html sw.js
-          git commit -m 'Fix mobile session persistence [skip ci]'
+          git add index.html exam.html sw.js
+          git commit -m 'Set exam pass mark to 68% [skip ci]'
           git push
