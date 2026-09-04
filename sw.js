@@ -1,10 +1,12 @@
-const CACHE='qcm-trainer-v13';
+const CACHE='qcm-trainer-v15';
 const APP='./app-v5.html';
 
 function patchApp(html){
-  const target="document.querySelectorAll('[data-bank]').forEach(b=>b.onclick=()=>{selectedBank=banks.find(x=>x.id===b.dataset.bank);render()})}";
-  const replacement="document.querySelectorAll('[data-bank]').forEach(b=>b.onclick=()=>{selectedBank=banks.find(x=>x.id===b.dataset.bank);render()});document.getElementById('exam')?.addEventListener('click',()=>startQuiz('exam'));document.getElementById('quick')?.addEventListener('click',()=>startQuiz('quick'));document.getElementById('full')?.addEventListener('click',()=>startQuiz('full'))}";
-  return html.includes(target)?html.replace(target,replacement):html;
+  html=html.replace('68% required to pass.','${/ADM-202/i.test(b.name)?73:68}% required to pass.');
+  html=html.replace("const score=quiz.correct,total=quiz.items.length,p=pct(score,total),passed=quiz.mode==='exam'?p>=68:null;","const score=quiz.correct,total=quiz.items.length,p=pct(score,total),passScore=/ADM-202/i.test(quiz.bankName||'')?73:68,passed=quiz.mode==='exam'?p>=passScore:null;");
+  html=html.replace('68% required.','${passScore}% required.');
+  html=html.replace("const passed=x.mode==='exam'?Number(x.percentage)>=68:null;","const passScore=/ADM-202/i.test(names[x.question_bank_id]||'')?73:68;const passed=x.mode==='exam'?Number(x.percentage)>=passScore:null;");
+  return html;
 }
 
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(['./','./index.html','./app-v5.html','./import-app-builder.html','./manifest.webmanifest'])).then(()=>self.skipWaiting()))});
