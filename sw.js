@@ -1,13 +1,22 @@
-const CACHE='qcm-trainer-v20';
+const CACHE='qcm-trainer-v21';
 const APP='./app-v5.html';
 
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(['./','./index.html','./app-v5.html','./import-app-builder.html','./import-platform-developer.html','./manifest.webmanifest'])).then(()=>self.skipWaiting()))});
-self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});
+self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))).then(()=>self.clients.claim()))});
 
 function patchMultiAnswerSupport(html){
   const oldFn="function shuffleOptions(q){const entries=Object.entries(q.options||{}),s=shuffle(entries),labels='ABCDE'.slice(0,s.length).split(''),options={},map={};s.forEach(([old,v],i)=>{options[labels[i]]=v;map[String(old)]=labels[i]});const original=Array.isArray(q.correct)?q.correct.map(String):[String(q.correct)];return {...q,options,correct:original.map(k=>map[k]).filter(Boolean)}}";
   const newFn="function normalizeCorrectAnswers(value,options){const keys=new Set(Object.keys(options||{}).map(String));const raw=Array.isArray(value)?value:[value],out=[];raw.forEach(v=>{const s=String(v??'').trim().toUpperCase();if(!s)return;if(keys.has(s)){out.push(s);return}const compact=s.replace(/[^A-Z]/g,'');if(compact&&[...compact].every(k=>keys.has(k))){[...compact].forEach(k=>out.push(k));return}const tokens=s.split(/[^A-Z]+/).filter(Boolean);if(tokens.length&&tokens.every(k=>keys.has(k)))tokens.forEach(k=>out.push(k))});return[...new Set(out)]}function shuffleOptions(q){const entries=Object.entries(q.options||{}),s=shuffle(entries),labels='ABCDE'.slice(0,s.length).split(''),options={},map={};s.forEach(([old,v],i)=>{options[labels[i]]=v;map[String(old)]=labels[i]});const original=normalizeCorrectAnswers(q.correct,q.options);return {...q,options,correct:original.map(k=>map[k]).filter(Boolean)}}";
-  if(html.includes(oldFn)) return html.replace(oldFn,newFn);
+  if(html.includes(oldFn)) html=html.replace(oldFn,newFn);
+  const oldConst="const EXAM_QUESTION_COUNT=65,EXAM_SCORED_COUNT=60,EXAM_PASS_SCORE=73;let timerId=null;";
+  const newConst="const EXAM_QUESTION_COUNT=65,EXAM_SCORED_COUNT=60;let EXAM_PASS_SCORE=73,timerId=null;";
+  if(html.includes(oldConst)) html=html.replace(oldConst,newConst);
+  const oldDashboard="function renderDashboard(){const available=";
+  const newDashboard="function renderDashboard(){EXAM_PASS_SCORE=String(selectedBank?.name||'').toLowerCase().includes('platform developer')?68:73;const available=";
+  if(html.includes(oldDashboard)) html=html.replace(oldDashboard,newDashboard);
+  const oldStart="function startQuiz(mode){if(!selectedBank)return;";
+  const newStart="function startQuiz(mode){if(!selectedBank)return;EXAM_PASS_SCORE=String(selectedBank?.name||'').toLowerCase().includes('platform developer')?68:73;";
+  if(html.includes(oldStart)) html=html.replace(oldStart,newStart);
   return html;
 }
 
