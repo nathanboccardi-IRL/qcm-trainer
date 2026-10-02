@@ -1,0 +1,41 @@
+name: Fix Platform Developer I pass score
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-pass-score:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Platform Developer I pass score to 68%
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app-v5.html')
+          s = p.read_text()
+          old = 'EXAM_QUESTION_COUNT=65,EXAM_SCORED_COUNT=60,EXAM_PASS_SCORE=73'
+          new = 'EXAM_QUESTION_COUNT=65,EXAM_SCORED_COUNT=60,EXAM_PASS_SCORE=68'
+          if old not in s:
+              print('Pass score already fixed or target string not found.')
+          else:
+              p.write_text(s.replace(old, new, 1))
+          PY
+
+      - name: Commit and push if changed
+        run: |
+          if git diff --quiet -- app-v5.html; then
+            echo 'No change needed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app-v5.html
+          git commit -m 'Fix Platform Developer I pass score to 68%'
+          git push
