@@ -1,4 +1,4 @@
-const CACHE='qcm-trainer-v21';
+const CACHE='qcm-trainer-v22';
 const APP='./app-v5.html';
 
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(['./','./index.html','./app-v5.html','./import-app-builder.html','./import-platform-developer.html','./manifest.webmanifest'])).then(()=>self.skipWaiting()))});
